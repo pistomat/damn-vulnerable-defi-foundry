@@ -1,3 +1,5 @@
 out/
 cache/
 .env
+.idea/
+node_modules/
