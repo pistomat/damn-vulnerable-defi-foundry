@@ -5,6 +5,7 @@ import {Utilities} from "../../utils/Utilities.sol";
 import "forge-std/Test.sol";
 
 import {SideEntranceLenderPool} from "../../../src/Contracts/side-entrance/SideEntranceLenderPool.sol";
+import {SideEntranceLenderPoolAttacker} from "../../../src/Contracts/side-entrance/SideEntranceLenderPoolAttacker.sol";
 
 contract SideEntrance is Test {
     uint256 internal constant ETHER_IN_POOL = 1_000e18;
@@ -36,7 +37,11 @@ contract SideEntrance is Test {
         /**
          * EXPLOIT START *
          */
-
+        SideEntranceLenderPoolAttacker sideEntranceLenderPoolAttacker = new SideEntranceLenderPoolAttacker({
+                _sideEntranceLenderPoolAddress: address(sideEntranceLenderPool),
+                _attackerAddress: address(attacker)
+            });
+        sideEntranceLenderPoolAttacker.attack();
         /**
          * EXPLOIT END *
          */

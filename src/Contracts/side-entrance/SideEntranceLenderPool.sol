@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.0;
 
 import "solady/src/utils/SafeTransferLib.sol";
@@ -29,7 +28,7 @@ contract SideEntranceLenderPool {
 
     function withdraw() external {
         uint256 amount = balances[msg.sender];
-        
+
         delete balances[msg.sender];
         emit Withdraw(msg.sender, amount);
 
