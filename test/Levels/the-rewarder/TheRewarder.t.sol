@@ -9,6 +9,7 @@ import {TheRewarderPool} from "../../../src/Contracts/the-rewarder/TheRewarderPo
 import {RewardToken} from "../../../src/Contracts/the-rewarder/RewardToken.sol";
 import {AccountingToken} from "../../../src/Contracts/the-rewarder/AccountingToken.sol";
 import {FlashLoanerPool} from "../../../src/Contracts/the-rewarder/FlashLoanerPool.sol";
+import {TheRewarderAttack} from "../../../src/Contracts/the-rewarder/TheRewarderAttack.sol";
 
 contract TheRewarder is Test {
     uint256 internal constant TOKENS_IN_LENDER_POOL = 1_000_000e18;
@@ -88,6 +89,19 @@ contract TheRewarder is Test {
         /**
          * EXPLOIT START *
          */
+        vm.startPrank(attacker);
+        vm.warp(block.timestamp + 5 days); // 5 days
+        TheRewarderAttack theRewarderAttack = new TheRewarderAttack({
+            _dvt: address(dvt),
+            _theRewarderPool: address(theRewarderPool),
+            _rewardToken: address(theRewarderPool.rewardToken()),
+            _accountingToken: address(theRewarderPool.accToken()),
+            _flashLoanerPool: address(flashLoanerPool)
+        });
+        vm.label(address(theRewarderAttack), "TheRewarderAttack");
+
+        theRewarderAttack.attack();
+        vm.stopPrank();
 
         /**
          * EXPLOIT END *
@@ -109,8 +123,10 @@ contract TheRewarder is Test {
         // Rewards must have been issued to the attacker account
         assertGt(theRewarderPool.rewardToken().totalSupply(), 100e18);
         uint256 rewardAttacker = theRewarderPool.rewardToken().balanceOf(attacker);
+        console.log("Reward attacker %s", rewardAttacker);
 
         // The amount of rewards earned should be really close to 100 tokens
+        console.log("The amount rewards earned should be really close to 100 tokens");
         uint256 deltaAttacker = 100e18 - rewardAttacker;
         assertLt(deltaAttacker, 1e17);
 
