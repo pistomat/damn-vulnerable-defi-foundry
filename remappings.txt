@@ -1,5 +1,11 @@
+damn-vulnerable-defi/=lib/damn-vulnerable-defi/contracts/
 ds-test/=lib/forge-std/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
-openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
-openzeppelin-contracts/=lib/openzeppelin-contracts/contracts/
-gnosis/=lib/safe-contracts/contracts/
+@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@gnosis.pm/safe-contracts/contracts/=lib/safe-contracts/contracts/
+safe-contracts/=lib/safe-contracts/contracts/
+solady/=lib/solady/
+solmate/=lib/solmate/
+@uniswap/v3-core/contracts/=lib/v3-core/contracts/
+@uniswap/v3-periphery/contracts/=lib/v3-periphery/contracts/

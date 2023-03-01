@@ -1,80 +1,87 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.0;
 
-import {DamnValuableTokenSnapshot} from "../DamnValuableTokenSnapshot.sol";
-import {Address} from "openzeppelin-contracts/utils/Address.sol";
-
+import "../DamnValuableTokenSnapshot.sol";
+import "./ISimpleGovernance.sol"
+;
 /**
  * @title SimpleGovernance
  * @author Damn Vulnerable DeFi (https://damnvulnerabledefi.xyz)
  */
-contract SimpleGovernance {
-    using Address for address;
+contract SimpleGovernance is ISimpleGovernance {
 
-    struct GovernanceAction {
-        address receiver;
-        bytes data;
-        uint256 weiAmount;
-        uint256 proposedAt;
-        uint256 executedAt;
-    }
-
-    DamnValuableTokenSnapshot public governanceToken;
-
-    mapping(uint256 => GovernanceAction) public actions;
-    uint256 private actionCounter;
     uint256 private constant ACTION_DELAY_IN_SECONDS = 2 days;
+    DamnValuableTokenSnapshot private _governanceToken;
+    uint256 private _actionCounter;
+    mapping(uint256 => GovernanceAction) private _actions;
 
-    event ActionQueued(uint256 actionId, address indexed caller);
-    event ActionExecuted(uint256 actionId, address indexed caller);
-
-    error GovernanceTokenCannotBeZeroAddress();
-    error NotEnoughVotesToPropose();
-    error CannotQueueActionsThatAffectGovernance();
-    error CannotExecuteThisAction();
-
-    constructor(address governanceTokenAddress) {
-        if (governanceTokenAddress == address(0)) {
-            revert GovernanceTokenCannotBeZeroAddress();
-        }
-
-        governanceToken = DamnValuableTokenSnapshot(governanceTokenAddress);
-        actionCounter = 1;
+    constructor(address governanceToken) {
+        _governanceToken = DamnValuableTokenSnapshot(governanceToken);
+        _actionCounter = 1;
     }
 
-    function queueAction(address receiver, bytes calldata data, uint256 weiAmount) external returns (uint256) {
-        if (!_hasEnoughVotes(msg.sender)) revert NotEnoughVotesToPropose();
-        if (receiver == address(this)) {
-            revert CannotQueueActionsThatAffectGovernance();
-        }
+    function queueAction(address target, uint128 value, bytes calldata data) external returns (uint256 actionId) {
+        if (!_hasEnoughVotes(msg.sender))
+            revert NotEnoughVotes(msg.sender);
 
-        uint256 actionId = actionCounter;
+        if (target == address(this))
+            revert InvalidTarget();
+        
+        if (data.length > 0 && target.code.length == 0)
+            revert TargetMustHaveCode();
 
-        GovernanceAction storage actionToQueue = actions[actionId];
-        actionToQueue.receiver = receiver;
-        actionToQueue.weiAmount = weiAmount;
-        actionToQueue.data = data;
-        actionToQueue.proposedAt = block.timestamp;
+        actionId = _actionCounter;
 
-        actionCounter++;
+        _actions[actionId] = GovernanceAction({
+            target: target,
+            value: value,
+            proposedAt: uint64(block.timestamp),
+            executedAt: 0,
+            data: data
+        });
+
+        unchecked { _actionCounter++; }
 
         emit ActionQueued(actionId, msg.sender);
-        return actionId;
     }
 
-    function executeAction(uint256 actionId) external payable {
-        if (!_canBeExecuted(actionId)) revert CannotExecuteThisAction();
+    function executeAction(uint256 actionId) external payable returns (bytes memory) {
+        if(!_canBeExecuted(actionId))
+            revert CannotExecute(actionId);
 
-        GovernanceAction storage actionToExecute = actions[actionId];
-        actionToExecute.executedAt = block.timestamp;
-
-        actionToExecute.receiver.functionCallWithValue(actionToExecute.data, actionToExecute.weiAmount);
+        GovernanceAction storage actionToExecute = _actions[actionId];
+        actionToExecute.executedAt = uint64(block.timestamp);
 
         emit ActionExecuted(actionId, msg.sender);
+
+        (bool success, bytes memory returndata) = actionToExecute.target.call{value: actionToExecute.value}(actionToExecute.data);
+        if (!success) {
+            if (returndata.length > 0) {
+                assembly {
+                    revert(add(0x20, returndata), mload(returndata))
+                }
+            } else {
+                revert ActionFailed(actionId);
+            }
+        }
+
+        return returndata;
     }
 
-    function getActionDelay() public pure returns (uint256) {
+    function getActionDelay() external pure returns (uint256) {
         return ACTION_DELAY_IN_SECONDS;
+    }
+
+    function getGovernanceToken() external view returns (address) {
+        return address(_governanceToken);
+    }
+
+    function getAction(uint256 actionId) external view returns (GovernanceAction memory) {
+        return _actions[actionId];
+    }
+
+    function getActionCounter() external view returns (uint256) {
+        return _actionCounter;
     }
 
     /**
@@ -83,15 +90,22 @@ contract SimpleGovernance {
      * 2) enough time has passed since it was first proposed
      */
     function _canBeExecuted(uint256 actionId) private view returns (bool) {
-        GovernanceAction memory actionToExecute = actions[actionId];
-        return (
-            actionToExecute.executedAt == 0 && (block.timestamp - actionToExecute.proposedAt >= ACTION_DELAY_IN_SECONDS)
-        );
+        GovernanceAction memory actionToExecute = _actions[actionId];
+        
+        if (actionToExecute.proposedAt == 0) // early exit
+            return false;
+
+        uint64 timeDelta;
+        unchecked {
+            timeDelta = uint64(block.timestamp) - actionToExecute.proposedAt;
+        }
+
+        return actionToExecute.executedAt == 0 && timeDelta >= ACTION_DELAY_IN_SECONDS;
     }
 
-    function _hasEnoughVotes(address account) private view returns (bool) {
-        uint256 balance = governanceToken.getBalanceAtLastSnapshot(account);
-        uint256 halfTotalSupply = governanceToken.getTotalSupplyAtLastSnapshot() / 2;
+    function _hasEnoughVotes(address who) private view returns (bool) {
+        uint256 balance = _governanceToken.getBalanceAtLastSnapshot(who);
+        uint256 halfTotalSupply = _governanceToken.getTotalSupplyAtLastSnapshot() / 2;
         return balance > halfTotalSupply;
     }
 }

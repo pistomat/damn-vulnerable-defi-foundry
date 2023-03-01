@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.0;
 
 import {UniswapV2Library} from "./UniswapV2Library.sol";
 
 interface IERC20 {
     function transfer(address to, uint256 amount) external returns (bool);
-
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
-
     function balanceOf(address account) external returns (uint256);
 }
 
@@ -36,7 +34,7 @@ contract PuppetV2Pool {
     }
 
     /**
-     * @notice Allows borrowing `borrowAmount` of tokens by first depositing three times their value in WETH
+     * @notice Allows borrowing tokens by first depositing three times their value in WETH
      *         Sender must have approved enough WETH in advance.
      *         Calculations assume that WETH and borrowed token have same amount of decimals.
      */
@@ -46,17 +44,17 @@ contract PuppetV2Pool {
         }
 
         // Calculate how much WETH the user must deposit
-        uint256 depositOfWETHRequired = calculateDepositOfWETHRequired(borrowAmount);
+        uint256 amount = calculateDepositOfWETHRequired(borrowAmount);
 
         // Take the WETH
-        _weth.transferFrom(msg.sender, address(this), depositOfWETHRequired);
+        _weth.transferFrom(msg.sender, address(this), amount);
 
         // internal accounting
-        deposits[msg.sender] += depositOfWETHRequired;
+        deposits[msg.sender] += amount;
 
         if (!_token.transfer(msg.sender, borrowAmount)) revert TransferFailed();
 
-        emit Borrowed(msg.sender, depositOfWETHRequired, borrowAmount, block.timestamp);
+        emit Borrowed(msg.sender, amount, borrowAmount, block.timestamp);
     }
 
     function calculateDepositOfWETHRequired(uint256 tokenAmount) public view returns (uint256) {

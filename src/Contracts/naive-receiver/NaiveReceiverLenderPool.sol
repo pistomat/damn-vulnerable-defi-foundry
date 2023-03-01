@@ -1,37 +1,66 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.0;
 
-import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
-import {Address} from "openzeppelin-contracts/utils/Address.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/interfaces/IERC3156FlashLender.sol";
+import "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
+import "solady/src/utils/SafeTransferLib.sol";
+import "./FlashLoanReceiver.sol";
 
 /**
  * @title NaiveReceiverLenderPool
  * @author Damn Vulnerable DeFi (https://damnvulnerabledefi.xyz)
  */
-contract NaiveReceiverLenderPool is ReentrancyGuard {
-    using Address for address;
+contract NaiveReceiverLenderPool is ReentrancyGuard, IERC3156FlashLender {
 
+    address public constant ETH = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     uint256 private constant FIXED_FEE = 1 ether; // not the cheapest flash loan
+    bytes32 private constant CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
 
-    error BorrowerMustBeADeployedContract();
-    error NotEnoughETHInPool();
-    error FlashLoanHasNotBeenPaidBack();
+    error RepayFailed();
+    error UnsupportedCurrency();
+    error CallbackFailed();
 
-    function fixedFee() external pure returns (uint256) {
+    function maxFlashLoan(address token) external view returns (uint256) {
+        if (token == ETH) {
+            return address(this).balance;
+        }
+        return 0;
+    }
+
+    function flashFee(address token, uint256) external pure returns (uint256) {
+        if (token != ETH)
+            revert UnsupportedCurrency();
         return FIXED_FEE;
     }
 
-    function flashLoan(address borrower, uint256 borrowAmount) external nonReentrant {
+    function flashLoan(
+        IERC3156FlashBorrower receiver,
+        address token,
+        uint256 amount,
+        bytes calldata data
+    ) external returns (bool) {
+        if (token != ETH)
+            revert UnsupportedCurrency();
+        
         uint256 balanceBefore = address(this).balance;
-        if (balanceBefore < borrowAmount) revert NotEnoughETHInPool();
-        if (!borrower.isContract()) revert BorrowerMustBeADeployedContract();
 
         // Transfer ETH and handle control to receiver
-        borrower.functionCallWithValue(abi.encodeWithSignature("receiveEther(uint256)", FIXED_FEE), borrowAmount);
-
-        if (address(this).balance < balanceBefore + FIXED_FEE) {
-            revert FlashLoanHasNotBeenPaidBack();
+        SafeTransferLib.safeTransferETH(address(receiver), amount);
+        if(receiver.onFlashLoan(
+            msg.sender,
+            ETH,
+            amount,
+            FIXED_FEE,
+            data
+        ) != CALLBACK_SUCCESS) {
+            revert CallbackFailed();
         }
+
+        if (address(this).balance < balanceBefore + FIXED_FEE)
+            revert RepayFailed();
+
+        return true;
     }
 
     // Allow deposits of ETH

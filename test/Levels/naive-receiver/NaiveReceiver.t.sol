@@ -31,7 +31,8 @@ contract NaiveReceiver is Test {
         vm.deal(address(naiveReceiverLenderPool), ETHER_IN_POOL);
 
         assertEq(address(naiveReceiverLenderPool).balance, ETHER_IN_POOL);
-        assertEq(naiveReceiverLenderPool.fixedFee(), 1e18);
+        assertEq(naiveReceiverLenderPool.maxFlashLoan(address(0)), ETHER_IN_POOL);
+        assertEq(naiveReceiverLenderPool.flashFee(address(0), 0), 1e18);
 
         flashLoanReceiver = new FlashLoanReceiver(
             payable(naiveReceiverLenderPool)

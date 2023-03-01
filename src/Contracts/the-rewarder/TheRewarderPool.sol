@@ -1,93 +1,98 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.0;
 
-import {RewardToken} from "./RewardToken.sol";
-import {DamnValuableToken} from "../DamnValuableToken.sol";
-import {AccountingToken} from "./AccountingToken.sol";
+import "solady/src/utils/FixedPointMathLib.sol";
+import "solady/src/utils/SafeTransferLib.sol";
+import { RewardToken } from "./RewardToken.sol";
+import { AccountingToken } from "./AccountingToken.sol";
 
 /**
  * @title TheRewarderPool
  * @author Damn Vulnerable DeFi (https://damnvulnerabledefi.xyz)
  */
 contract TheRewarderPool {
+    using FixedPointMathLib for uint256;
+
     // Minimum duration of each round of rewards in seconds
     uint256 private constant REWARDS_ROUND_MIN_DURATION = 5 days;
-
-    uint256 public lastSnapshotIdForRewards;
-    uint256 public lastRecordedSnapshotTimestamp;
-
-    mapping(address => uint256) public lastRewardTimestamps;
+    
+    uint256 public constant REWARDS = 100 ether;
 
     // Token deposited into the pool by users
-    DamnValuableToken public immutable liquidityToken;
+    address public immutable liquidityToken;
 
     // Token used for internal accounting and snapshots
     // Pegged 1:1 with the liquidity token
-    AccountingToken public accToken;
+    AccountingToken public immutable accountingToken;
 
     // Token in which rewards are issued
     RewardToken public immutable rewardToken;
 
-    // Track number of rounds
-    uint256 public roundNumber;
+    uint128 public lastSnapshotIdForRewards;
+    uint64 public lastRecordedSnapshotTimestamp;
+    uint64 public roundNumber; // Track number of rounds
+    mapping(address => uint64) public lastRewardTimestamps;
 
-    error MustDepositTokens();
-    error TransferFail();
+    error InvalidDepositAmount();
 
-    constructor(address tokenAddress) {
-        // Assuming all three tokens have 18 decimals
-        liquidityToken = DamnValuableToken(tokenAddress);
-        accToken = new AccountingToken();
+    constructor(address _token) {
+        // Assuming all tokens have 18 decimals
+        liquidityToken = _token;
+        accountingToken = new AccountingToken();
         rewardToken = new RewardToken();
 
         _recordSnapshot();
     }
 
     /**
-     * @notice sender must have approved `amountToDeposit` liquidity tokens in advance
+     * @notice Deposit `amount` liquidity tokens into the pool, minting accounting tokens in exchange.
+     *         Also distributes rewards if available.
+     * @param amount amount of tokens to be deposited
      */
-    function deposit(uint256 amountToDeposit) external {
-        if (amountToDeposit == 0) revert MustDepositTokens();
+    function deposit(uint256 amount) external {
+        if (amount == 0) {
+            revert InvalidDepositAmount();
+        }
 
-        accToken.mint(msg.sender, amountToDeposit);
+        accountingToken.mint(msg.sender, amount);
         distributeRewards();
 
-        if (!liquidityToken.transferFrom(msg.sender, address(this), amountToDeposit)) revert TransferFail();
+        SafeTransferLib.safeTransferFrom(
+            liquidityToken,
+            msg.sender,
+            address(this),
+            amount
+        );
     }
 
-    function withdraw(uint256 amountToWithdraw) external {
-        accToken.burn(msg.sender, amountToWithdraw);
-        if (!liquidityToken.transfer(msg.sender, amountToWithdraw)) {
-            revert TransferFail();
-        }
+    function withdraw(uint256 amount) external {
+        accountingToken.burn(msg.sender, amount);
+        SafeTransferLib.safeTransfer(liquidityToken, msg.sender, amount);
     }
 
-    function distributeRewards() public returns (uint256) {
-        uint256 rewards = 0;
-
+    function distributeRewards() public returns (uint256 rewards) {
         if (isNewRewardsRound()) {
             _recordSnapshot();
         }
 
-        uint256 totalDeposits = accToken.totalSupplyAt(lastSnapshotIdForRewards);
-        uint256 amountDeposited = accToken.balanceOfAt(msg.sender, lastSnapshotIdForRewards);
+        uint256 totalDeposits = accountingToken.totalSupplyAt(lastSnapshotIdForRewards);
+        uint256 amountDeposited = accountingToken.balanceOfAt(msg.sender, lastSnapshotIdForRewards);
 
         if (amountDeposited > 0 && totalDeposits > 0) {
-            rewards = (amountDeposited * 100 * 10 ** 18) / totalDeposits;
-
+            rewards = amountDeposited.mulDiv(REWARDS, totalDeposits);
             if (rewards > 0 && !_hasRetrievedReward(msg.sender)) {
                 rewardToken.mint(msg.sender, rewards);
-                lastRewardTimestamps[msg.sender] = block.timestamp;
+                lastRewardTimestamps[msg.sender] = uint64(block.timestamp);
             }
         }
-
-        return rewards;
     }
 
     function _recordSnapshot() private {
-        lastSnapshotIdForRewards = accToken.snapshot();
-        lastRecordedSnapshotTimestamp = block.timestamp;
-        roundNumber++;
+        lastSnapshotIdForRewards = uint128(accountingToken.snapshot());
+        lastRecordedSnapshotTimestamp = uint64(block.timestamp);
+        unchecked {
+            ++roundNumber;
+        }
     }
 
     function _hasRetrievedReward(address account) private view returns (bool) {

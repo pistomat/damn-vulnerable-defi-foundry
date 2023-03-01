@@ -27,7 +27,7 @@ contract Truster is Test {
         dvt = new DamnValuableToken();
         vm.label(address(dvt), "DVT");
 
-        trusterLenderPool = new TrusterLenderPool(address(dvt));
+        trusterLenderPool = new TrusterLenderPool(dvt);
         vm.label(address(trusterLenderPool), "Truster Lender Pool");
 
         dvt.transfer(address(trusterLenderPool), TOKENS_IN_POOL);
