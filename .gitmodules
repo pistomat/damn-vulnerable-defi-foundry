@@ -14,3 +14,6 @@
 	path = lib/damn-vulnerable-defi
 	url = https://github.com/tinchoabbate/damn-vulnerable-defi
 	branch = v3.0.0
+[submodule "lib/solmate"]
+	path = lib/solmate
+	url = https://github.com/transmissions11/solmate
