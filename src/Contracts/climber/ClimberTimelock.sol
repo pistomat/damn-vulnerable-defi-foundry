@@ -92,7 +92,7 @@ contract ClimberTimelock is ClimberTimelockBase {
             }
         }
 
-        if (getOperationState(id) != OperationState.ReadyForExecution) {
+        if (getOperationState(id) != OperationState.ReadyForExecution, "Operation not ready for execution") {
             revert NotReadyForExecution(id);
         }
 
