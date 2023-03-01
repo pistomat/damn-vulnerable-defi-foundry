@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.0;
 
-import {Initializable} from "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import {OwnableUpgradeable} from "openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {UUPSUpgradeable} from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {ClimberTimelock} from "./ClimberTimelock.sol";
 import "forge-std/Test.sol";
@@ -68,7 +68,7 @@ contract ClimberVaultUpgradableSweeper is Initializable, OwnableUpgradeable, UUP
     function _setSweeper(address newSweeper) internal {
         _sweeper = newSweeper;
     }
-    
+
     function sendTokensToAddress(address tokenAddress, address recipient, uint256 amount) external onlyOwner {
         IERC20 token = IERC20(tokenAddress);
         require(token.transfer(recipient, amount), "Transfer failed");

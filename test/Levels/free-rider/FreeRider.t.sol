@@ -138,7 +138,7 @@ contract FreeRider is Test {
 
         uint256 flashLoanFee = 45135406218655968;
         FreeRiderAttack freeRiderAttack = new FreeRiderAttack{value: flashLoanFee}({
-            _freeRiderBuyer: address(freeRiderRecovery),
+            _freeRiderRecovery: address(freeRiderRecovery),
             _freeRiderNFTMarketplace: payable(address(freeRiderNFTMarketplace)),
             _dvt: address(dvt),
             _damnValuableNFT: address(damnValuableNFT),

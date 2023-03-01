@@ -95,7 +95,7 @@ contract TheRewarder is Test {
             _dvt: address(dvt),
             _theRewarderPool: address(theRewarderPool),
             _rewardToken: address(theRewarderPool.rewardToken()),
-            _accountingToken: address(theRewarderPool.accToken()),
+            _accountingToken: address(theRewarderPool.accountingToken()),
             _flashLoanerPool: address(flashLoanerPool)
         });
         vm.label(address(theRewarderAttack), "TheRewarderAttack");

