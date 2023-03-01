@@ -21,3 +21,7 @@
 	path = lib/solady
 	url = https://github.com/Vectorized/solady
 	branch = v0.0.78
+[submodule "lib/v3-core"]
+	path = lib/v3-core
+	url = https://github.com/Uniswap/v3-core
+	branch = v1.0.0
