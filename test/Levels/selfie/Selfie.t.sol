@@ -65,7 +65,7 @@ contract Selfie is Test {
 
     function validation() internal {
         // Attacker has taken all tokens from the pool
-        assertEq(dvtSnapshot.balanceOf(attacker), TOKENS_IN_POOL);
-        assertEq(dvtSnapshot.balanceOf(address(selfiePool)), 0);
+        assertEq(dvtSnapshot.balanceOf(attacker), TOKENS_IN_POOL, "Attacker should have all tokens");
+        assertEq(dvtSnapshot.balanceOf(address(selfiePool)), 0, "Pool should have no tokens");
     }
 }

