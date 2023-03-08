@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@gnosis.pm/safe-contracts/contracts/GnosisSafe.sol";
 import "@gnosis.pm/safe-contracts/contracts/proxies/GnosisSafeProxyFactory.sol";
 import "@gnosis.pm/safe-contracts/contracts/proxies/IProxyCreationCallback.sol";
-import {BackdoorAttack} from "./BackdoorAttack.sol";
+import {WalletRegistryAttack} from "./BackdoorAttack.sol";
 
 contract Backdoor is Test {
     uint256 internal constant AMOUNT_TOKENS_DISTRIBUTED = 40e18;
@@ -84,15 +84,11 @@ contract Backdoor is Test {
          * EXPLOIT START *
          */
         vm.startPrank(attacker);
-        BackdoorAttack backdoorAttack = new BackdoorAttack{value: 0.05 ether}({
-            _dvt: address(dvt),
-            _masterCopy: address(masterCopy),
-            _walletFactory: address(walletFactory),
-            _walletRegistry: address(walletRegistry),
-            _users: users,
-            _attacker: attacker
+        WalletRegistryAttack walletRegistryAttack = new WalletRegistryAttack({
+            _initialBeneficiaries: users,
+            _walletRegistry: address(walletRegistry)
         });
-        vm.label(address(backdoorAttack), "BackdoorAttack");
+        vm.label(address(walletRegistryAttack), "WalletRegistryAttack");
         vm.stopPrank();
         /**
          * EXPLOIT END *
