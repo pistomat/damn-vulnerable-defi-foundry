@@ -3,7 +3,7 @@ pragma solidity >=0.8.0;
 
 import "forge-std/Test.sol";
 
-import {FreeRiderBuyer} from "../../../src/Contracts/free-rider/FreeRiderBuyer.sol";
+import {FreeRiderRecovery} from "../../../src/Contracts/free-rider/FreeRiderRecovery.sol";
 import {FreeRiderNFTMarketplace} from "../../../src/Contracts/free-rider/FreeRiderNFTMarketplace.sol";
 import {IUniswapV2Router02, IUniswapV2Factory, IUniswapV2Pair} from "../../../src/Contracts/free-rider/Interfaces.sol";
 import {DamnValuableNFT} from "../../../src/Contracts/DamnValuableNFT.sol";
@@ -24,7 +24,7 @@ contract FreeRider is Test {
     uint256 internal constant UNISWAP_INITIAL_WETH_RESERVE = 9000 ether;
     uint256 internal constant DEADLINE = 10_000_000;
 
-    FreeRiderBuyer internal freeRiderBuyer;
+    FreeRiderRecovery internal freeRiderRecovery;
     FreeRiderNFTMarketplace internal freeRiderNFTMarketplace;
     DamnValuableToken internal dvt;
     DamnValuableNFT internal damnValuableNFT;
@@ -115,12 +115,12 @@ contract FreeRider is Test {
 
         freeRiderNFTMarketplace.offerMany(NFTsForSell, NFTsPrices);
 
-        assertEq(freeRiderNFTMarketplace.amountOfOffers(), AMOUNT_OF_NFTS);
+        assertEq(freeRiderNFTMarketplace.offersCount(), AMOUNT_OF_NFTS);
         vm.stopPrank();
 
         vm.startPrank(buyer);
 
-        freeRiderBuyer = new FreeRiderBuyer{value: BUYER_PAYOUT}(
+        freeRiderRecovery = new FreeRiderRecovery{value: BUYER_PAYOUT}(
             attacker,
             address(damnValuableNFT)
         );
@@ -151,18 +151,18 @@ contract FreeRider is Test {
 
         // Attacker must have earned all ETH from the payout
         assertGt(attacker.balance, BUYER_PAYOUT);
-        assertEq(address(freeRiderBuyer).balance, 0);
+        assertEq(address(freeRiderRecovery).balance, 0);
 
         // The buyer extracts all NFTs from its associated contract
         vm.startPrank(buyer);
         for (uint256 tokenId = 0; tokenId < AMOUNT_OF_NFTS; tokenId++) {
-            damnValuableNFT.transferFrom(address(freeRiderBuyer), buyer, tokenId);
+            damnValuableNFT.transferFrom(address(freeRiderRecovery), buyer, tokenId);
             assertEq(damnValuableNFT.ownerOf(tokenId), buyer);
         }
         vm.stopPrank();
 
         // Exchange must have lost NFTs and ETH
-        assertEq(freeRiderNFTMarketplace.amountOfOffers(), 0);
+        assertEq(freeRiderNFTMarketplace.offersCount(), 0);
         assertLt(address(freeRiderNFTMarketplace).balance, MARKETPLACE_INITIAL_ETH_BALANCE);
     }
 }

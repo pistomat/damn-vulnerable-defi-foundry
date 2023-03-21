@@ -2,12 +2,13 @@
 pragma solidity >=0.8.0;
 
 import {Utilities} from "../../utils/Utilities.sol";
-import "openzeppelin-contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "forge-std/Test.sol";
 
 import {DamnValuableToken} from "../../../src/Contracts/DamnValuableToken.sol";
 import {ClimberTimelock} from "../../../src/Contracts/climber/ClimberTimelock.sol";
 import {ClimberVault} from "../../../src/Contracts/climber/ClimberVault.sol";
+import {PROPOSER_ROLE, ADMIN_ROLE} from "../../../src/Contracts/climber/ClimberConstants.sol";
 
 contract Climber is Test {
     uint256 internal constant VAULT_TOKEN_BALANCE = 10_000_000e18;
@@ -56,9 +57,9 @@ contract Climber is Test {
 
         climberTimelock = ClimberTimelock(payable(ClimberVault(address(climberVaultProxy)).owner()));
 
-        assertTrue(climberTimelock.hasRole(climberTimelock.PROPOSER_ROLE(), proposer));
+        assertTrue(climberTimelock.hasRole(PROPOSER_ROLE, proposer));
 
-        assertTrue(climberTimelock.hasRole(climberTimelock.ADMIN_ROLE(), deployer));
+        assertTrue(climberTimelock.hasRole(ADMIN_ROLE, deployer));
 
         // Deploy token and transfer initial token balance to the vault
         dvt = new DamnValuableToken();

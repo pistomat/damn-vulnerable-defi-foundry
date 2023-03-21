@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.0;
 
-import {Initializable} from "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import {OwnableUpgradeable} from "openzeppelin-contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {UUPSUpgradeable} from "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "solady/src/utils/SafeTransferLib.sol";
 
-import {ClimberTimelock} from "./ClimberTimelock.sol";
+import "./ClimberTimelock.sol";
+import {WITHDRAWAL_LIMIT, WAITING_PERIOD} from "./ClimberConstants.sol";
+import {CallerNotSweeper, InvalidWithdrawalAmount, InvalidWithdrawalTime} from "./ClimberErrors.sol";
 
 /**
  * @title ClimberVault
@@ -14,19 +17,20 @@ import {ClimberTimelock} from "./ClimberTimelock.sol";
  * @author Damn Vulnerable DeFi (https://damnvulnerabledefi.xyz)
  */
 contract ClimberVault is Initializable, OwnableUpgradeable, UUPSUpgradeable {
-    uint256 public constant WITHDRAWAL_LIMIT = 1 ether;
-    uint256 public constant WAITING_PERIOD = 15 days;
-
     uint256 private _lastWithdrawalTimestamp;
     address private _sweeper;
 
     modifier onlySweeper() {
-        require(msg.sender == _sweeper, "Caller must be sweeper");
+        if (msg.sender != _sweeper) {
+            revert CallerNotSweeper();
+        }
         _;
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() initializer {}
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(address admin, address proposer, address sweeper) external initializer {
         // Initialize inheritance chain
@@ -37,32 +41,34 @@ contract ClimberVault is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         transferOwnership(address(new ClimberTimelock(admin, proposer)));
 
         _setSweeper(sweeper);
-        _setLastWithdrawal(block.timestamp);
-        _lastWithdrawalTimestamp = block.timestamp;
+        _updateLastWithdrawalTimestamp(block.timestamp);
     }
 
     // Allows the owner to send a limited amount of tokens to a recipient every now and then
-    function withdraw(address tokenAddress, address recipient, uint256 amount) external onlyOwner {
-        require(amount <= WITHDRAWAL_LIMIT, "Withdrawing too much");
-        require(block.timestamp > _lastWithdrawalTimestamp + WAITING_PERIOD, "Try later");
+    function withdraw(address token, address recipient, uint256 amount) external onlyOwner {
+        if (amount > WITHDRAWAL_LIMIT) {
+            revert InvalidWithdrawalAmount();
+        }
 
-        _setLastWithdrawal(block.timestamp);
+        if (block.timestamp <= _lastWithdrawalTimestamp + WAITING_PERIOD) {
+            revert InvalidWithdrawalTime();
+        }
 
-        IERC20 token = IERC20(tokenAddress);
-        require(token.transfer(recipient, amount), "Transfer failed");
+        _updateLastWithdrawalTimestamp(block.timestamp);
+
+        SafeTransferLib.safeTransfer(token, recipient, amount);
     }
 
     // Allows trusted sweeper account to retrieve any tokens
-    function sweepFunds(address tokenAddress) external onlySweeper {
-        IERC20 token = IERC20(tokenAddress);
-        require(token.transfer(_sweeper, token.balanceOf(address(this))), "Transfer failed");
+    function sweepFunds(address token) external onlySweeper {
+        SafeTransferLib.safeTransfer(token, _sweeper, IERC20(token).balanceOf(address(this)));
     }
 
     function getSweeper() external view returns (address) {
         return _sweeper;
     }
 
-    function _setSweeper(address newSweeper) internal {
+    function _setSweeper(address newSweeper) private {
         _sweeper = newSweeper;
     }
 
@@ -70,7 +76,7 @@ contract ClimberVault is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return _lastWithdrawalTimestamp;
     }
 
-    function _setLastWithdrawal(uint256 timestamp) internal {
+    function _updateLastWithdrawalTimestamp(uint256 timestamp) private {
         _lastWithdrawalTimestamp = timestamp;
     }
 

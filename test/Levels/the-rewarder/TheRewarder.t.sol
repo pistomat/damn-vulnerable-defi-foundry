@@ -58,11 +58,11 @@ contract TheRewarder is Test {
             vm.startPrank(users[i]);
             dvt.approve(address(theRewarderPool), USER_DEPOSIT);
             theRewarderPool.deposit(USER_DEPOSIT);
-            assertEq(theRewarderPool.accToken().balanceOf(users[i]), USER_DEPOSIT);
+            assertEq(theRewarderPool.accountingToken().balanceOf(users[i]), USER_DEPOSIT);
             vm.stopPrank();
         }
 
-        assertEq(theRewarderPool.accToken().totalSupply(), USER_DEPOSIT * 4);
+        assertEq(theRewarderPool.accountingToken().totalSupply(), USER_DEPOSIT * 4);
         assertEq(theRewarderPool.rewardToken().totalSupply(), 0);
 
         // Advance time 5 days so that depositors can get rewards

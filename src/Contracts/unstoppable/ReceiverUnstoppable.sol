@@ -1,36 +1,45 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.0;
 
-import {UnstoppableLender} from "./UnstoppableLender.sol";
-import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
+import "solmate/src/auth/Owned.sol";
+import { UnstoppableVault, ERC20 } from "../unstoppable/UnstoppableVault.sol";
 
 /**
  * @title ReceiverUnstoppable
  * @author Damn Vulnerable DeFi (https://damnvulnerabledefi.xyz)
  */
-contract ReceiverUnstoppable {
-    using SafeERC20 for IERC20;
+contract ReceiverUnstoppable is Owned, IERC3156FlashBorrower {
+    UnstoppableVault private immutable pool;
 
-    UnstoppableLender private immutable pool;
-    address private immutable owner;
+    error UnexpectedFlashLoan();
 
-    error OnlyOwnerCanExecuteFlashLoan();
-    error SenderMustBePool();
-
-    constructor(address poolAddress) {
-        pool = UnstoppableLender(poolAddress);
-        owner = msg.sender;
+    constructor(address poolAddress) Owned(msg.sender) {
+        pool = UnstoppableVault(poolAddress);
     }
 
-    /// @dev Pool will call this function during the flash loan
-    function receiveTokens(address tokenAddress, uint256 amount) external {
-        if (msg.sender != address(pool)) revert SenderMustBePool();
-        IERC20(tokenAddress).safeTransfer(msg.sender, amount);
+    function onFlashLoan(
+        address initiator,
+        address token,
+        uint256 amount,
+        uint256 fee,
+        bytes calldata
+    ) external returns (bytes32) {
+        if (initiator != address(this) || msg.sender != address(pool) || token != address(pool.asset()) || fee != 0)
+            revert UnexpectedFlashLoan();
+
+        ERC20(token).approve(address(pool), amount);
+
+        return keccak256("IERC3156FlashBorrower.onFlashLoan");
     }
 
-    function executeFlashLoan(uint256 amount) external {
-        if (msg.sender != owner) revert OnlyOwnerCanExecuteFlashLoan();
-        pool.flashLoan(amount);
+    function executeFlashLoan(uint256 amount) external onlyOwner {
+        address asset = address(pool.asset());
+        pool.flashLoan(
+            this,
+            asset,
+            amount,
+            bytes("")
+        );
     }
 }
