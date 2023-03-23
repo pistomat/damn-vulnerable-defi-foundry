@@ -23,10 +23,10 @@ contract PuppetV3Pool {
 
     event Borrowed(address indexed borrower, uint256 depositAmount, uint256 borrowAmount);
 
-    constructor(IERC20Minimal _weth, IERC20Minimal _token, IUniswapV3Pool _uniswapV3Pool) {
-        weth = _weth;
-        token = _token;
-        uniswapV3Pool = _uniswapV3Pool;
+    constructor(address _weth, address _token, address _uniswapV3Pool) {
+        weth = IERC20Minimal(_weth);
+        token = IERC20Minimal(_token);
+        uniswapV3Pool = IUniswapV3Pool(_uniswapV3Pool);
     }
 
     /**
