@@ -44,7 +44,7 @@ contract PuppetV2 is Test {
         vm.deal(attacker, ATTACKER_INITIAL_ETH_BALANCE);
 
         deployer = payable(address(uint160(uint256(keccak256(abi.encodePacked("deployer"))))));
-        vm.label(deployer, "deployer");
+        vm.label(deployer, "Deployer");
 
         // Deploy token to be traded in Uniswap
         dvt = new DamnValuableToken();

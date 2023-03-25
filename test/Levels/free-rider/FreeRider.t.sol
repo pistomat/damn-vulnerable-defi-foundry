@@ -45,7 +45,7 @@ contract FreeRider is Test {
         vm.deal(buyer, BUYER_PAYOUT);
 
         deployer = payable(address(uint160(uint256(keccak256(abi.encodePacked("deployer"))))));
-        vm.label(deployer, "deployer");
+        vm.label(deployer, "Deployer");
         vm.deal(deployer, UNISWAP_INITIAL_WETH_RESERVE + MARKETPLACE_INITIAL_ETH_BALANCE);
 
         // Attacker starts with little ETH balance

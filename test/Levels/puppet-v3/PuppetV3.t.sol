@@ -70,7 +70,7 @@ contract PuppetV3 is Test {
 
         // Initialize deployer account
         deployer = payable(address(uint160(uint256(keccak256(abi.encodePacked("deployer"))))));
-        vm.label(deployer, "deployer");
+        vm.label(deployer, "Deployer");
 
         // Get a reference to the Uniswap V3 Factory contract
         uniswapV3Factory = IUniswapV3Factory(0x1F98431c8aD98523631AE4a59f267346ea31F984);
@@ -141,7 +141,7 @@ contract PuppetV3 is Test {
         assertLt(attacker.balance, LENDING_POOL_INITIAL_TOKEN_BALANCE * 3);
 
         initialBlockTimestamp = block.timestamp;
-        
+
         vm.stopPrank();
 
         console.log(unicode"🧨 Let's see if you can break it... 🧨");

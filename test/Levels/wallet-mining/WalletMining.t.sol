@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-
 import {Utilities} from "../../utils/Utilities.sol";
 import "forge-std/Test.sol";
 import {StdCheats} from "forge-std/StdCheats.sol";
@@ -31,7 +30,7 @@ contract WalletMining is Test {
         /**
          * SETUP SCENARIO - NO NEED TO CHANGE ANYTHING HERE
          */
-        
+
         // Initialize player account
         attacker = payable(address(uint160(uint256(keccak256(abi.encodePacked("attacker"))))));
         vm.label(attacker, "Attacker");
@@ -136,7 +135,7 @@ contract WalletMining is Test {
 
         // Deposit account must have code
         assertGt(DEPOSIT_ADDRESS.code.length, 0);
-        
+
         // The deposit address and the Safe Deployer contract must not hold tokens
         assertEq(dvt.balanceOf(DEPOSIT_ADDRESS), 0);
         assertEq(dvt.balanceOf(address(walletDeployer)), 0);
